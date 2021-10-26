@@ -7,5 +7,5 @@ authors = ["AlessandroBregoli <alessandroxciv@gmail.com>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ndarray = "*"
-ndarray-linalg = "*"
+ndarray = "0.15.0"
+ndarray-linalg = { version = "0.14", features = ["openblas-static"] }
