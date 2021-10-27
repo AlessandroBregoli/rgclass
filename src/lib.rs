@@ -1,6 +1,8 @@
 use ndarray::*;
 use ndarray_linalg::*;
 use std::cmp::min;
+use std;
+use std::collections::BTreeMap;
 
 use linfa;
 use linfa::prelude::*;
@@ -43,7 +45,7 @@ fn build_model(split_quality: linfa_trees::SplitQuality,
 
     if let Some(i) = min_weight_split {
         model = model.min_weight_split(i);
-    }
+        }
 
     if let Some(i) = min_weight_leaf {
         model = model.min_weight_leaf(i);
@@ -51,6 +53,61 @@ fn build_model(split_quality: linfa_trees::SplitQuality,
 
 
     model
+}
+
+fn load_dataset(adj_list_path: &std::path::PathBuf, 
+                node_graph_list_path: &std::path::PathBuf,
+                graph_class_path: &Option<std::path::PathBuf>
+                ) -> (Vec<Array2<u64>>, Option<Array1<u64>>){
+    if !adj_list_path.exists() {
+        eprintln!("Path: '{}'  does not exists", adj_list_path.display());
+        std::process::exit(1);
+    }
+
+    if !node_graph_list_path.exists(){
+        eprintln!("Path: '{}'  does not exists", node_graph_list_path.display());
+        std::process::exit(1);
+    }
+
+    if let Some(path) = graph_class_path {
+        if !path.exists(){
+            eprintln!("Path: '{}'  does not exists", path.display());
+            std::process::exit(1);
+        }
+    }
+
+    let node_graph_list_file = std::io::BufReader::new(std::fs::File::open(node_graph_list_path).unwrap());
+    let node_graph_list: Vec<u64> = csv::ReaderBuilder::new().has_headers(false).trim(csv::Trim::All).from_reader(node_graph_list_file).records().map(|x| x.unwrap()[0].parse::<u64>().unwrap()).collect();
+
+    let mut graphs_size: BTreeMap<u64, usize> = BTreeMap::new();
+    for x in node_graph_list.iter(){
+        *graphs_size.entry(*x).or_default() += 1;
+    }
+    let mut dataset: BTreeMap<u64, Array2<u64>> = graphs_size.iter().map(|(k,v)| (*k, Array2::zeros((*v,*v)))).collect();
+
+    let adj_list_file = std::io::BufReader::new(std::fs::File::open(adj_list_path).unwrap());
+    for edge in csv::ReaderBuilder::new().has_headers(false).trim(csv::Trim::All).from_reader(adj_list_file).records() {
+        let edge = edge.unwrap();
+        let n1: usize = edge[0].parse().unwrap();
+        let n2: usize = edge[1].parse().unwrap();
+
+        let graph_id:u64 = node_graph_list[n1 - 1];
+
+        let n0 = node_graph_list.iter().position(|&x| x == graph_id).unwrap() + 1;
+        dataset.get_mut(&graph_id).unwrap()[[n1 - n0,n2 - n0]] = 1;
+
+    }
+
+
+    if let Some(path) = graph_class_path {
+        let graph_class_file = std::io::BufReader::new(std::fs::File::open(path).unwrap());
+        let graph_class: Array1<u64> = csv::ReaderBuilder::new().has_headers(false).trim(csv::Trim::All).from_reader(graph_class_file).records().map(|x| x.unwrap()[0].parse::<u64>().unwrap()).collect();
+        return (dataset.iter().map(|(_,v)| v.clone()).collect(), Some(graph_class));
+    }
+    
+
+    (dataset.iter().map(|(_,v)| v.clone()).collect(), None)
+
 }
 
 
@@ -180,4 +237,18 @@ mod tests {
 
 
     }
+
+    #[test]
+    fn test_load_dataset(){
+        let adj_list_path = std::path::PathBuf::from("datasets/MUTAG/MUTAG_A.txt");
+        let node_graph_list_path = std::path::PathBuf::from("datasets/MUTAG/MUTAG_graph_indicator.txt");
+        let graph_class_path = std::path::PathBuf::from("datasets/MUTAG/MUTAG_graph_labels.txt");
+
+
+        let (dataset, tags) = load_dataset(&adj_list_path, &node_graph_list_path, &Some(graph_class_path));
+        assert_eq!(tags.unwrap().len(), 188);
+        assert_eq!(dataset[0].shape(), &[17,17]);
+        assert_eq!(dataset.len(), 188);
+    }
+
 }
