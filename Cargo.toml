@@ -9,3 +9,6 @@ authors = ["AlessandroBregoli <alessandroxciv@gmail.com>"]
 [dependencies]
 ndarray = "0.15.0"
 ndarray-linalg = { version = "0.14", features = ["openblas-static"] }
+linfa = {version = "*", features = ["serde"]}
+linfa-trees = "*"
+serde_json = "*"

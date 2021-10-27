@@ -2,6 +2,11 @@ use ndarray::*;
 use ndarray_linalg::*;
 use std::cmp::min;
 
+use linfa;
+use linfa::prelude::*;
+use linfa_trees;
+use serde_json;
+
 fn adj_matrix_to_Laplacian(adj_matrix: &Array2<u64>) -> Array2<f64> {
     let adj_matrix = adj_matrix.mapv(|x| x as f64);
     let degree: Array1<f64> = adj_matrix.sum_axis(Axis(1));
@@ -25,6 +30,29 @@ fn adj_matrices_to_features(adj_matrices: &Vec<Array2<u64>>, features: usize) ->
         ret.slice_mut(s!(idx, 0..features)).assign(&val);
     }
     ret
+}
+
+fn fit_model(X: Array2<f64>, y: Array1<usize>, 
+             split_quality: linfa_trees::SplitQuality, 
+             max_depth: Option<usize>,
+             min_weight_split: Option<f32>,
+             min_weight_leaf: Option<f32>
+             ) -> linfa_trees::DecisionTree<f64, usize> {
+    let dataset = linfa::Dataset::new(X,y);
+    let mut model = linfa_trees::DecisionTree::params()
+        .split_quality(split_quality)
+        .max_depth(max_depth);
+
+    if let Some(i) = min_weight_split {
+        model = model.min_weight_split(i);
+    }
+
+    if let Some(i) = min_weight_leaf {
+        model = model.min_weight_leaf(i);
+    }
+
+
+    model.fit(&dataset).unwrap()
 }
 
 
@@ -114,5 +142,43 @@ mod tests {
         let adj_matrices = vec![adj_matrix1, adj_matrix2, adj_matrix3];
 
         assert_eq!(adj_matrices_to_features(&adj_matrices, 5),features_vector);
+    }
+
+    #[test]
+    fn test_fit_model(){
+        let adj_matrix1:Array2<u64> = array![[0,1,1,1,1],
+                                            [1,0,0,0,0],
+                                            [1,0,0,0,0],
+                                            [1,0,0,0,0],
+                                            [1,0,0,0,0]];
+
+        let adj_matrix2:Array2<u64> = array![[0,1,1],
+                                             [1,0,0],
+                                             [1,0,0]];
+
+        
+        let adj_matrix3:Array2<u64> = array![[0,1,1,1,1],
+                                            [1,0,1,1,1],
+                                            [1,1,0,1,1],
+                                            [1,1,1,0,1],
+                                            [1,1,1,0,1]];
+
+
+        let adj_matrix4:Array2<u64> = array![[0,1,1],
+                                             [1,0,1],
+                                             [1,1,0]];
+        
+
+        let adj_matrices = vec![adj_matrix1, adj_matrix2, adj_matrix3, adj_matrix4];
+        let target:Array1<usize> = array![0,0,1,1];
+        
+        let X = adj_matrices_to_features(&adj_matrices, 4);
+        
+        let model = fit_model(X.clone(), target.clone(), linfa_trees::SplitQuality::Gini, None, None, None);
+        let predicted_y: Array1<usize> = model.predict(&X);
+
+        assert_eq!(predicted_y, target);
+
+
     }
 }
