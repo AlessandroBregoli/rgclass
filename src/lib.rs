@@ -32,13 +32,11 @@ fn adj_matrices_to_features(adj_matrices: &Vec<Array2<u64>>, features: usize) ->
     ret
 }
 
-fn fit_model(X: Array2<f64>, y: Array1<usize>, 
-             split_quality: linfa_trees::SplitQuality, 
+fn build_model(split_quality: linfa_trees::SplitQuality, 
              max_depth: Option<usize>,
              min_weight_split: Option<f32>,
              min_weight_leaf: Option<f32>
-             ) -> linfa_trees::DecisionTree<f64, usize> {
-    let dataset = linfa::Dataset::new(X,y);
+             ) -> linfa_trees::DecisionTreeParams<f64,usize> {
     let mut model = linfa_trees::DecisionTree::params()
         .split_quality(split_quality)
         .max_depth(max_depth);
@@ -52,7 +50,7 @@ fn fit_model(X: Array2<f64>, y: Array1<usize>,
     }
 
 
-    model.fit(&dataset).unwrap()
+    model
 }
 
 
@@ -173,11 +171,12 @@ mod tests {
         let target:Array1<usize> = array![0,0,1,1];
         
         let X = adj_matrices_to_features(&adj_matrices, 4);
-        
-        let model = fit_model(X.clone(), target.clone(), linfa_trees::SplitQuality::Gini, None, None, None);
-        let predicted_y: Array1<usize> = model.predict(&X);
 
-        assert_eq!(predicted_y, target);
+        let dataset = linfa::Dataset::new(X, target);
+        
+        let model = build_model(linfa_trees::SplitQuality::Gini, None, None, None);
+        let predicted_y: Array1<usize> = model.fit(&dataset).unwrap().predict(&dataset.records);
+        assert_eq!(predicted_y, Array::from_iter(dataset.targets.iter().cloned()));
 
 
     }
