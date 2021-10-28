@@ -1,6 +1,6 @@
 [package]
 name = "rgclass"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2018"
 authors = ["AlessandroBregoli <alessandroxciv@gmail.com>"]
 
@@ -13,3 +13,6 @@ linfa = {version = "*", features = ["serde"]}
 linfa-trees = "*"
 serde_json = "*"
 csv = "*"
+clap = "*"
+log = "*"
+env_logger = "*"

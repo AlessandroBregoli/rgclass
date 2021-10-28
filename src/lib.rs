@@ -9,15 +9,19 @@ use linfa::prelude::*;
 use linfa_trees;
 use serde_json;
 
-fn adj_matrix_to_Laplacian(adj_matrix: &Array2<u64>) -> Array2<f64> {
+pub fn adj_matrix_to_Laplacian(adj_matrix: &Array2<u64>) -> Array2<f64> {
     let adj_matrix = adj_matrix.mapv(|x| x as f64);
     let degree: Array1<f64> = adj_matrix.sum_axis(Axis(1));
-    let d_1_2 = degree.mapv(|x| 1.0/(f64::sqrt(x)));
+    let d_1_2 = degree.mapv(|x| {
+        if x > 0.0 {
+            1.0/f64::sqrt(x)
+        } else {0.0}
+    });
     let D_1_2 = Array::eye( d_1_2.len()) * &d_1_2;
     Array::eye(d_1_2.len()) - D_1_2.dot(&adj_matrix.dot(&D_1_2))
 }
 
-fn matrix_to_feature(m: &Array2<f64>, features: usize) -> Array1<f64>{
+pub fn matrix_to_feature(m: &Array2<f64>, features: usize) -> Array1<f64>{
     let e = m.clone().eigvalsh(UPLO::Lower).unwrap();
     let mut ret: Array1<f64> = Array::zeros(features);
     let e: Array1<f64> = e.iter().filter(|&x| *x > 0.0).map(|&x| x).collect();
@@ -26,7 +30,7 @@ fn matrix_to_feature(m: &Array2<f64>, features: usize) -> Array1<f64>{
     ret 
 }
 
-fn adj_matrices_to_features(adj_matrices: &Vec<Array2<u64>>, features: usize) -> Array2<f64>{
+pub fn adj_matrices_to_features(adj_matrices: &Vec<Array2<u64>>, features: usize) -> Array2<f64>{
     let mut ret:Array2<f64> = Array2::zeros((adj_matrices.len(),features));
     for (idx, val) in adj_matrices.iter().map(|x| matrix_to_feature(&adj_matrix_to_Laplacian(x), features)).enumerate(){
         ret.slice_mut(s!(idx, 0..features)).assign(&val);
@@ -34,7 +38,7 @@ fn adj_matrices_to_features(adj_matrices: &Vec<Array2<u64>>, features: usize) ->
     ret
 }
 
-fn build_model(split_quality: linfa_trees::SplitQuality, 
+pub fn build_model(split_quality: linfa_trees::SplitQuality, 
              max_depth: Option<usize>,
              min_weight_split: Option<f32>,
              min_weight_leaf: Option<f32>
@@ -55,10 +59,10 @@ fn build_model(split_quality: linfa_trees::SplitQuality,
     model
 }
 
-fn load_dataset(adj_list_path: &std::path::PathBuf, 
+pub fn load_dataset(adj_list_path: &std::path::PathBuf, 
                 node_graph_list_path: &std::path::PathBuf,
                 graph_class_path: &Option<std::path::PathBuf>
-                ) -> (Vec<Array2<u64>>, Option<Array1<u64>>){
+                ) -> (Vec<Array2<u64>>, Option<Array1<usize>>){
     if !adj_list_path.exists() {
         eprintln!("Path: '{}'  does not exists", adj_list_path.display());
         std::process::exit(1);
@@ -95,18 +99,25 @@ fn load_dataset(adj_list_path: &std::path::PathBuf,
 
         let n0 = node_graph_list.iter().position(|&x| x == graph_id).unwrap() + 1;
         dataset.get_mut(&graph_id).unwrap()[[n1 - n0,n2 - n0]] = 1;
+        dataset.get_mut(&graph_id).unwrap()[[n2 - n0,n1 - n0]] = 1;
 
     }
 
 
     if let Some(path) = graph_class_path {
         let graph_class_file = std::io::BufReader::new(std::fs::File::open(path).unwrap());
-        let graph_class: Array1<u64> = csv::ReaderBuilder::new().has_headers(false).trim(csv::Trim::All).from_reader(graph_class_file).records().map(|x| x.unwrap()[0].parse::<u64>().unwrap()).collect();
+        let graph_class: Array1<usize> = csv::ReaderBuilder::new().has_headers(false).trim(csv::Trim::All).from_reader(graph_class_file).records().map(|x| x.unwrap()[0].parse::<usize>().unwrap()).collect();
         return (dataset.iter().map(|(_,v)| v.clone()).collect(), Some(graph_class));
     }
     
 
     (dataset.iter().map(|(_,v)| v.clone()).collect(), None)
+}
+
+pub fn compute_cross_validation(model: linfa_trees::DecisionTreeParams<f64,usize> , 
+                            k: usize,
+                            mut dataset: linfa::dataset::Dataset<f64,usize>) -> f64{
+    dataset.cross_validate(k, &vec![model], |prediction, truth| Ok(prediction.confusion_matrix(truth).unwrap().accuracy())).unwrap().mean().unwrap() as f64
 
 }
 
@@ -230,7 +241,6 @@ mod tests {
         let X = adj_matrices_to_features(&adj_matrices, 4);
 
         let dataset = linfa::Dataset::new(X, target);
-        
         let model = build_model(linfa_trees::SplitQuality::Gini, None, None, None);
         let predicted_y: Array1<usize> = model.fit(&dataset).unwrap().predict(&dataset.records);
         assert_eq!(predicted_y, Array::from_iter(dataset.targets.iter().cloned()));
