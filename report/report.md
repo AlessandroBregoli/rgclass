@@ -41,10 +41,10 @@ diagonal matrix of node degrees, the normalized Laplacian of $G$ is defined as:
   \mathcal{L} = I - D^{-\frac{1}{2}}AD^{-\frac{1}{2}}
 \end{equation}
 The model uses the $k$ smallest positive eigenvalues of $\mathcal{L}$ in ascending order as input of
-the classifier. If the graph has less then $k$ nodes, the authors use right zero padding to get a
+the classifier. If the graph has less than $k$ nodes, the authors use right zero padding to get a
 vector of appropriate dimensions.
 
-The authors then, suggest to apply a Random Forest classifier on the extracted features. However,
+The authors then, suggest applying a Random Forest classifier on the extracted features. However,
 since the goal of the authors was to develop a simple model, I decided to use an even simpler
 classifier: the decision tree.
 
@@ -89,10 +89,10 @@ In order to evaluate *rgclass* I selected a subset of the datasets used by the a
   BRENDA enzyme database.  In this case the task is to correctly assign each enzyme to one of the 6
   EC top-level classes.  
 - **PF**: Proteins full
-- **NCI1**: NCI1 represents a balanced subsets of datasets of chemical compounds screened for
+- **NCI1**: NCI1 represents a balanced subset of datasets of chemical compounds screened for
   activity against non-small cell lung cancer.
 
-After the selection of the datasets I computed the 10 fold cross-validation accuracy with embedding
+After the selection of the datasets I computed the 10-fold cross-validation accuracy with embedding
 dimension ($k$) set to the average number of nodes for each dataset. The result are reported in the
 following table.
 
@@ -105,6 +105,14 @@ following table.
 +---------------+-----+-----+-----+------+
 
 # Conclusions
+
+The model presented by (@de2018simple) is really simple. However, this simplicity come with a low
+computational complexity. 
+
+In order to further reduce the execution time I decided to apply the Decition Tree classifier. The
+results presented in Section \ref{results} shows that the performace drastically decrease using a
+Decision Tree. The only exception is the experiment on MT dataset. This is probably due to the fact
+that MT dataset is the smallest one both in the number of networks and in the size of the networks.
 
 # Bibliography
 
