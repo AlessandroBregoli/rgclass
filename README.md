@@ -3,7 +3,7 @@
 *rgclas* is a didactic implementation of algorithm proposed by [Nada de Lara and Edourard Pineau](https://arxiv.org/abs/1810.09155).
 
 
-## Quicl Start
+## Quick Start
 
 If you want to use *rgclass* from linux, the easiest way is to download the compiled version.
 
