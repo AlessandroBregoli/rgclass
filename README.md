@@ -45,6 +45,13 @@ $ rgclass  -a datasets/MUTAG/MUTAG_A.txt -n datasets/MUTAG/MUTAG_graph_indicator
 Accuracy: 0.8666666746139526
 ```
 
+There are also some facoltative parameters:
+
+- *-e*:  If presents, the model uses the entropy as split metric. Otherwise, it uses gini
+- *-l n*:  Set the minimum number of samples that a split has to place in each leaf to n
+- *-d n*:  Set the optional limit to the depth of the decision tree to n
+- *-s n*:  Set the minimum number of samples required to split a node to n
+
 
 
 ## Build from source
